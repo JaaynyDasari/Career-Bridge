@@ -6,6 +6,9 @@ import {
   BrainCircuit, CheckCircle, DollarSign, Check
 } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+// --- INTERFACES (Unchanged) ---
 interface Job {
   _id: string; title: string; company: string; location: string; roleType: string;
   createdAt: string; applicants: number; tags: string[]; salary: number;
@@ -17,6 +20,7 @@ interface UserProfile {
   name: string; email: string; age: number; education: string; skills: string[]; resumeUrl: string;
 }
 
+// --- Typing Effect Hook (Unchanged) ---
 const useTypingEffect = (texts: string[], typingSpeed = 100, deletingSpeed = 50, delay = 2000) => {
   const [text, setText] = useState('');
   const [index, setIndex] = useState(0);
@@ -38,6 +42,7 @@ const useTypingEffect = (texts: string[], typingSpeed = 100, deletingSpeed = 50,
   return text;
 };
 
+// --- HELPER FUNCTION (Moved outside for stability) ---
 const timeAgo = (dateString: string) => {
     const minutes = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / 60000);
     if (minutes < 1) return 'just now';
@@ -47,13 +52,16 @@ const timeAgo = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
 };
 
+// --- PROPS FOR THE STANDALONE JobCard COMPONENT ---
 interface JobCardProps {
   job: Job;
   appliedJobIds: Set<string>;
   onApplyClick: (job: Job) => void;
 }
 
-
+// ==================================================================
+// --- THE JobCard COMPONENT (Moved Outside for button functionality) ---
+// ==================================================================
 const JobCard: React.FC<JobCardProps> = ({ job, appliedJobIds, onApplyClick }) => (
     <div key={job._id} className="border border-gray-200 bg-white rounded-xl p-5">
       <div className="flex items-start gap-4">
@@ -72,7 +80,8 @@ const JobCard: React.FC<JobCardProps> = ({ job, appliedJobIds, onApplyClick }) =
           <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500 mt-2">
             <span className="flex items-center"><MapPin size={14} className="mr-1.5"/>{job.location}</span>
             <span className="flex items-center"><Briefcase size={14} className="mr-1.5"/>{job.roleType}</span>
-<span className="flex items-center">₹ {job.salary ? job.salary.toLocaleString('en-IN') : 'N/A'} / Year</span>            <span className="flex items-center"><Users size={14} className="mr-1.5"/>{job.applicants} applicants</span>
+            <span className="flex items-center">₹ {job.salary ? job.salary.toLocaleString('en-IN') : 'N/A'} / Year</span>
+            <span className="flex items-center"><Users size={14} className="mr-1.5"/>{job.applicants} applicants</span>
           </div>
 
           {job.tags && job.tags.length > 0 && (
@@ -122,11 +131,127 @@ const JobSeekerDashboard: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editProfile, setEditProfile] = useState<Partial<UserProfile & { skills: string }>>({});
   const [filters, setFilters] = useState({ role: '', location: '', type: 'All' });
-  const fetchData = useCallback(async (tab: string, currentFilters: typeof filters) => { /* ... (This function is correct and unchanged) ... */ setLoading(true);const token=localStorage.getItem("userToken");if(!token){logout();navigate("/")}try{const e={Authorization:`Bearer ${token}`};if("find-jobs"===tab){const[t,o]=await Promise.all([fetch(`/api/jobs?${new URLSearchParams({role:currentFilters.role,location:currentFilters.location,type:currentFilters.type}).toString()}`,{headers:e}),fetch("/api/jobs/my-applications",{headers:e})]);t.ok&&setJobs(await t.json());if(o.ok){const i:Application[]=await o.json();setAppliedJobIds(new Set(i.map(s=>s.jobId)))}}else if("applications"===tab){const n=await fetch("/api/jobs/my-applications",{headers:e});n.ok&&setApplications(await n.json())}else if("profile"===tab){const r=await fetch("/api/users/profile",{headers:e});if(r.ok){const l=await r.json();setProfile(l),setEditProfile({...l,skills:(l.skills||[]).join(", ")})}}else if("ai-matches"===tab){const[a,c]=await Promise.all([fetch("/api/jobs/recommended",{headers:e}),fetch("/api/jobs/my-applications",{headers:e})]);a.ok&&setRecommendedJobs(await a.json());if(c.ok){const d:Application[]=await c.json();setAppliedJobIds(new Set(d.map(p=>p.jobId)))}}}catch(h){console.error("Failed to fetch data:",h)}finally{setLoading(!1)}}, [logout, navigate]);
-  useEffect(() => { if (activeTab === 'find-jobs') { setLoading(true); const timerId = setTimeout(() => { fetchData(activeTab, filters); }, 500); return () => clearTimeout(timerId); } else { fetchData(activeTab, filters); } }, [activeTab, filters, fetchData]);
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { const { name, value } = e.target; setFilters(prev => ({ ...prev, [name]: value })); };
-  const handleApplyFormSubmit = async (e: React.FormEvent) => { e.preventDefault(); if (!jobToApply || !formResumeFile || !user) return; setIsSubmitting(true); const formData = new FormData(); formData.append('name', formName); formData.append('email', formEmail); formData.append('skills', formSkills); formData.append('readyToJoin', formReadyToJoin); formData.append('resume', formResumeFile); const token = localStorage.getItem('userToken'); try { const headers = new Headers(); if(token) headers.append('Authorization', `Bearer ${token}`); const res = await fetch(`/api/jobs/${jobToApply._id}/apply`, { method: 'POST', headers, body: formData }); const data = await res.json(); if (res.ok) { alert('Application submitted!'); setShowApplyForm(false); fetchData(activeTab, filters); } else { alert(`Error: ${data.message}`); } } catch (error) { alert('An error occurred.'); } finally { setIsSubmitting(false); } };
-  const handleProfileUpdate = async (e: React.FormEvent) => { e.preventDefault(); setIsSubmitting(true); const token = localStorage.getItem('userToken'); const formData = new FormData(); if(editProfile.name) formData.append('name', editProfile.name); if(editProfile.age) formData.append('age', String(editProfile.age)); if(editProfile.education) formData.append('education', editProfile.education); if(editProfile.skills) formData.append('skills', Array.isArray(editProfile.skills) ? editProfile.skills.join(', ') : editProfile.skills); if(formResumeFile) formData.append('resume', formResumeFile); try { const headers = new Headers(); if(token) headers.append('Authorization', `Bearer ${token}`); const res = await fetch('/api/users/profile', { method: 'PUT', headers, body: formData }); if(res.ok){ alert('Profile updated successfully!'); fetchData('profile', filters); } else { alert('Failed to update profile.'); } } catch (error) { alert('An error occurred while updating profile.'); } finally { setIsSubmitting(false); } };
+
+  const fetchData = useCallback(async (tab: string, currentFilters: typeof filters) => {
+    setLoading(true);
+    const token = localStorage.getItem("userToken");
+    if(!token){ logout(); navigate("/"); return; }
+    try{
+      const authHeader = { Authorization: `Bearer ${token}` };
+      if("find-jobs" === tab) {
+        const queryParams = new URLSearchParams(currentFilters).toString();
+        const [jobsRes, appsRes] = await Promise.all([
+          fetch(`${API_URL}/api/jobs?${queryParams}`, { headers: authHeader }), // <-- CORRECTED
+          fetch(`${API_URL}/api/jobs/my-applications`, { headers: authHeader }) // <-- CORRECTED
+        ]);
+        if(jobsRes.ok) setJobs(await jobsRes.json());
+        if(appsRes.ok) {
+          const myApps:Application[] = await appsRes.json();
+          setAppliedJobIds(new Set(myApps.map(app => app.jobId)));
+        }
+      } else if("applications" === tab) {
+        const res = await fetch(`${API_URL}/api/jobs/my-applications`, { headers: authHeader }); // <-- CORRECTED
+        if(res.ok) setApplications(await res.json());
+      } else if("profile" === tab) {
+        const res = await fetch(`${API_URL}/api/users/profile`, { headers: authHeader }); // <-- CORRECTED
+        if(res.ok) {
+          const data = await res.json();
+          setProfile(data);
+          setEditProfile({ ...data, skills: (data.skills || []).join(", ") });
+        }
+      } else if("ai-matches" === tab) {
+        const [recoRes, appsRes] = await Promise.all([
+          fetch(`${API_URL}/api/jobs/recommended`, { headers: authHeader }), // <-- CORRECTED
+          fetch(`${API_URL}/api/jobs/my-applications`, { headers: authHeader }) // <-- CORRECTED
+        ]);
+        if(recoRes.ok) setRecommendedJobs(await recoRes.json());
+        if(appsRes.ok) {
+          const myApps:Application[] = await appsRes.json();
+          setAppliedJobIds(new Set(myApps.map(app => app.jobId)));
+        }
+      }
+    } catch(error) {
+      console.error("Failed to fetch data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [logout, navigate]);
+  
+  useEffect(() => {
+    if (activeTab === 'find-jobs') {
+      setLoading(true);
+      const timerId = setTimeout(() => {
+        fetchData(activeTab, filters);
+      }, 500);
+      return () => clearTimeout(timerId);
+    } else {
+      fetchData(activeTab, filters);
+    }
+  }, [activeTab, filters, fetchData]);
+  
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleApplyFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!jobToApply || !formResumeFile || !user) return;
+    setIsSubmitting(true);
+    const formData = new FormData();
+    formData.append('name', formName);
+    formData.append('email', formEmail);
+    formData.append('skills', formSkills);
+    formData.append('readyToJoin', formReadyToJoin);
+    formData.append('resume', formResumeFile);
+    const token = localStorage.getItem('userToken');
+    try {
+      const headers = new Headers();
+      if(token) headers.append('Authorization', `Bearer ${token}`);
+      // The error in your code was here: `queryParams` is not defined in this scope.
+      // The correct URL is the one that points to the specific job ID for applying.
+      const res = await fetch(`${API_URL}/api/jobs/${jobToApply._id}/apply`, { method: 'POST', headers, body: formData }); // <-- CORRECTED
+      const data = await res.json();
+      if (res.ok) {
+        alert('Application submitted!');
+        setShowApplyForm(false);
+        fetchData(activeTab, filters);
+      } else {
+        alert(`Error: ${data.message}`);
+      }
+    } catch (error) {
+      alert('An error occurred.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    const token = localStorage.getItem('userToken');
+    const formData = new FormData();
+    if(editProfile.name) formData.append('name', editProfile.name);
+    if(editProfile.age) formData.append('age', String(editProfile.age));
+    if(editProfile.education) formData.append('education', editProfile.education);
+    if(editProfile.skills) formData.append('skills', Array.isArray(editProfile.skills) ? editProfile.skills.join(', ') : editProfile.skills);
+    if(formResumeFile) formData.append('resume', formResumeFile);
+    try {
+        const headers = new Headers();
+        if(token) headers.append('Authorization', `Bearer ${token}`);
+        const res = await fetch(`${API_URL}/api/users/profile`, { method: 'PUT', headers, body: formData }); // <-- CORRECTED
+        if(res.ok){
+            alert('Profile updated successfully!');
+            fetchData('profile', filters);
+        } else {
+            alert('Failed to update profile.');
+        }
+    } catch (error) {
+        alert('An error occurred while updating profile.');
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
   
   const motivationalTexts = useTypingEffect([ "Your next chapter starts now.", "Let's find your dream job.", "Opportunity is just a click away." ]);
 
@@ -190,7 +315,6 @@ const JobSeekerDashboard: React.FC = () => {
         <main className="col-span-9">
           {activeTab === 'find-jobs' && (
             <div>
-                {}
                 <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6 shadow-sm">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div className="col-span-2">

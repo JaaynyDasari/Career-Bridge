@@ -6,6 +6,9 @@ import {
   Plus, LogOut, Building, Briefcase, Users, UserCheck, Edit, XCircle, FileSpreadsheet, Mail, Award, Download, CheckCircle, UserCheck2, Wallet, BarChart
 } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+// --- INTERFACES ---
 interface Job {
   _id: string;
   title: string;
@@ -28,20 +31,24 @@ interface Application {
   resumeUrl: string; 
   status: 'Pending' | 'Shortlisted' | 'Rejected';
   matchScore: number; 
+} // <-- THIS WAS THE MISSING BRACE
+
 interface Stats {
   totalJobs: number;
   totalApplicants: number;
   shortlisted: number;
   growth: string; 
-}
+} // <-- THIS WAS THE MISSING BRACE
 
+// --- WEB3 CONFIGURATION ---
 const ADMIN_WALLET_ADDRESS = '0x264B284C68F8D9b53Be29Fe64F6Fc76439F20AB5';
 const PLATFORM_FEE_ETH = '0.001';
 
 const RecruiterDashboard: React.FC = () => {
-
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  
+  // --- STATE MANAGEMENT ---
   const [stats, setStats] = useState<Stats>({ totalJobs: 0, totalApplicants: 0, shortlisted: 0, growth: '+0%' });
   const [myJobs, setMyJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,14 +67,15 @@ const RecruiterDashboard: React.FC = () => {
   const [loadingApplicants, setLoadingApplicants] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+  // --- DATA FETCHING ---
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     const token = localStorage.getItem('userToken');
     if (!token) { logout(); navigate('/'); return; }
     try {
       const [statsRes, jobsRes] = await Promise.all([
-        fetch('/api/recruiter/stats', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/recruiter/jobs', { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch(`${API_URL}/api/recruiter/stats`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_URL}/api/recruiter/jobs`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
       if (statsRes.ok) setStats(await statsRes.json());
       if (jobsRes.ok) setMyJobs(await jobsRes.json());
@@ -77,6 +85,7 @@ const RecruiterDashboard: React.FC = () => {
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
+  // --- FORM LOGIC ---
   const resetForm = () => {
     setEditingJob(null); setJobTitle(''); setJobDescription('');
     setJobSalary(''); setJobRoleType('Full-time'); setJobWorkMode('On-site');
@@ -93,7 +102,8 @@ const RecruiterDashboard: React.FC = () => {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = localStorage.getItem('userToken');
-    const url = editingJob ? `/api/jobs/${editingJob._id}` : '/api/jobs';
+    // CORRECTED: Added API_URL to the fetch URL
+    const url = editingJob ? `${API_URL}/api/jobs/${editingJob._id}` : `${API_URL}/api/jobs`;
     const method = editingJob ? 'PUT' : 'POST';
     const jobData = { title: jobTitle, description: jobDescription, salary: Number(jobSalary), roleType: jobRoleType, workMode: jobWorkMode, location: jobLocation, tags: jobTags };
     try {
@@ -103,11 +113,13 @@ const RecruiterDashboard: React.FC = () => {
     } catch (error) { alert('An unexpected error occurred.'); }
   };
   
+  // --- APPLICANT LOGIC ---
   const handleViewApplicants = async (job: Job) => {
     setSelectedJob(job); setShowApplicantsModal(true); setLoadingApplicants(true);
     const token = localStorage.getItem('userToken');
     try {
-      const res = await fetch(`/api/recruiter/jobs/${job._id}/applications`, { headers: { 'Authorization': `Bearer ${token}` } });
+      // CORRECTED: Added API_URL to the fetch URL
+      const res = await fetch(`${API_URL}/api/recruiter/jobs/${job._id}/applications`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) setApplications(await res.json());
     } catch (error) { console.error("Failed to fetch applicants", error); } 
     finally { setLoadingApplicants(false); }
@@ -116,7 +128,8 @@ const RecruiterDashboard: React.FC = () => {
   const handleUpdateStatus = async (applicationId: string, status: 'Shortlisted' | 'Rejected') => {
     const token = localStorage.getItem('userToken');
     try {
-      const res = await fetch(`/api/recruiter/applications/${applicationId}/status`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+      // CORRECTED: Added API_URL to the fetch URL
+      const res = await fetch(`${API_URL}/api/recruiter/applications/${applicationId}/status`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
       if (res.ok) { setApplications(prev => prev.map(app => app._id === applicationId ? { ...app, status } : app)); fetchDashboardData(); } else { alert('Failed to update status.'); }
     } catch (error) { console.error("Failed to update status", error); }
   };
@@ -127,6 +140,7 @@ const RecruiterDashboard: React.FC = () => {
     return 'bg-yellow-100 text-yellow-800';
   };
 
+  // --- PAYMENT LOGIC ---
   const handleShowCreateForm = async () => {
     if (typeof window.ethereum === 'undefined') { alert('MetaMask is not installed. Please install it to continue.'); return; }
     setIsProcessingPayment(true);
@@ -152,12 +166,11 @@ const RecruiterDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between"><div className="flex items-center space-x-3"><div className="w-11 h-11 rounded-lg flex items-center justify-center bg-[#6366F1] text-white"><Building className="w-6 h-6" /></div><div><h1 className="text-lg font-bold text-gray-900">Welcome, {user?.company}!</h1><p className="text-sm text-gray-500">Manage your hiring pipeline efficiently</p></div></div><div className="flex items-center space-x-4"><button onClick={handleShowCreateForm} disabled={isProcessingPayment} className="bg-[#6366F1] text-white px-4 py-2 rounded-lg font-semibold flex items-center space-x-2 hover:opacity-90 text-sm disabled:bg-gray-400 disabled:cursor-wait">{isProcessingPayment ? <Wallet className="animate-ping w-5 h-5"/> : <Plus className="w-5 h-5" />}<span>{isProcessingPayment ? 'Processing...' : 'Post New Job'}</span></button><button onClick={() => { logout(); navigate('/'); }} className="text-gray-500 hover:text-gray-800 flex items-center space-x-2 text-sm"><LogOut className="w-5 h-5" /><span>Logout</span></button></div></div></header>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {}
+        {/* The Growth Card has been removed from here */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded-xl p-5 border flex justify-between items-center"><div ><p className="text-sm font-medium text-gray-600">Total Jobs</p><p className="text-3xl font-bold text-gray-900 mt-1">{loading ? '-' : stats.totalJobs}</p></div><div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><Briefcase className="w-6 h-6"/></div></div>
             <div className="bg-white rounded-xl p-5 border flex justify-between items-center"><div ><p className="text-sm font-medium text-gray-600">Total Applicants</p><p className="text-3xl font-bold text-gray-900 mt-1">{loading ? '-' : stats.totalApplicants}</p></div><div className="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center"><Users className="w-6 h-6"/></div></div>
             <div className="bg-white rounded-xl p-5 border flex justify-between items-center"><div ><p className="text-sm font-medium text-gray-600">Shortlisted</p><p className="text-3xl font-bold text-gray-900 mt-1">{loading ? '-' : stats.shortlisted}</p></div><div className="w-12 h-12 bg-[#6366F1]/10 text-[#6366F1] rounded-lg flex items-center justify-center"><UserCheck className="w-6 h-6"/></div></div>
-            {}
         </div>
         <div className="bg-white rounded-xl border p-6"><h2 className="text-xl font-semibold text-gray-900 mb-5">Active Job Postings</h2><div className="space-y-4">{loading ? (<p>Loading...</p>) : myJobs.length === 0 ? (<div className="text-center py-12 border-2 border-dashed rounded-lg bg-gray-50"><p className="text-gray-500 font-medium">You haven't posted any jobs yet.</p><button onClick={handleShowCreateForm} disabled={isProcessingPayment} className="mt-4 bg-[#6366F1] text-white px-5 py-2 rounded-lg font-semibold hover:opacity-90 disabled:bg-gray-400"><Plus size={16} className="inline-block mr-1" />{isProcessingPayment ? 'Processing...' : 'Post Your First Job'}</button></div>) : (myJobs.map(job => (<div key={job._id} className="border rounded-lg p-4 flex justify-between items-center hover:border-[#6366F1] transition-colors"><div><p className="font-bold text-lg text-gray-800">{job.title}</p><p className="text-sm text-gray-500 mt-1">{job.applicants} applicant(s)</p></div><div className="flex items-center space-x-2"><button onClick={() => handleViewApplicants(job)} className="bg-[#6366F1] text-white px-3 py-1.5 rounded-lg font-semibold flex items-center space-x-2 hover:opacity-90 text-sm"><FileSpreadsheet size={16}/><span>View Applicants</span></button><button onClick={() => handleShowEditForm(job)} className="p-2 rounded-md hover:bg-gray-200" title="Edit Job"><Edit size={16}/></button></div></div>)))}</div></div>
       </main>

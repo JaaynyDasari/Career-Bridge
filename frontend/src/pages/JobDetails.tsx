@@ -3,6 +3,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Briefcase, MapPin, DollarSign, ArrowLeft, Building, FileText, Check } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+
 interface Job {
   _id: string;
   title: string;
@@ -26,7 +29,7 @@ const JobDetails: React.FC = () => {
 
   const checkApplicationStatus = useCallback(async (token: string) => {
     try {
-        const res = await fetch('/api/jobs/my-applications', {
+        const res = await fetch(`${API_URL}/api/jobs/my-applications`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -46,7 +49,7 @@ const JobDetails: React.FC = () => {
 
     const fetchJobDetails = async () => {
       try {
-        const res = await fetch(`/api/jobs/${jobId}`, {
+        const res = await fetch(`${API_URL}/api/jobs/${jobId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -68,7 +71,7 @@ const JobDetails: React.FC = () => {
   const handleApply = async () => {
     const token = localStorage.getItem('userToken');
     try {
-        const res = await fetch(`/api/jobs/${jobId}/apply`, {
+        const res = await fetch(`${API_URL}/api/jobs/${jobId}/apply`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
