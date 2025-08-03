@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
+// This makes the API URL configurable for deployment
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface User {
@@ -63,7 +64,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('userToken', data.token);
         return true;
       } else {
-        alert(data.message || 'Signup failed');
+        alert(`Signup Failed: ${data.message || 'An unknown error occurred.'}`);
         return false;
       }
     } catch (error) {
@@ -75,7 +76,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
+      // CORRECTED: Ensures this function calls the /api/auth/login endpoint
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -91,7 +93,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('userToken', data.token);
         return true;
       } else {
-        alert(data.message || 'Login failed');
+        alert(`Login Failed: ${data.message || 'Invalid email or password.'}`);
         return false;
       }
     } catch (error) {

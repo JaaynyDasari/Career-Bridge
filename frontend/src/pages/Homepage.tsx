@@ -17,10 +17,17 @@ const Homepage: React.FC = () => {
     setUserRole(role);
   };
 
+  // CORRECTED: This handler now correctly uses the `login` function from context.
   const handleLogin = async (email: string, password: string) => {
     if (await login(email, password)) {
-     
-      navigate(userRole === 'jobseeker' ? '/jobseeker/dashboard' : '/recruiter/dashboard');
+      // After login, the context updates, and localStorage is set.
+      // We can then read the role from localStorage to navigate correctly.
+      const updatedUserInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+      if (updatedUserInfo.role === 'jobseeker') {
+        navigate('/jobseeker/dashboard');
+      } else if (updatedUserInfo.role === 'recruiter') {
+        navigate('/recruiter/dashboard');
+      }
     }
   };
 
@@ -37,7 +44,7 @@ const Homepage: React.FC = () => {
       return (
         <LoginForm
           type={userRole}
-          onLogin={handleLogin}
+          onLogin={handleLogin} // CORRECTED: Passes the correct login handler.
           onBack={() => setAuthAction(null)}
           onSwitchToSignup={() => setAuthAction('signup')}
         />
@@ -144,7 +151,7 @@ const Homepage: React.FC = () => {
   );
 };
 
-// --- AUTH FORMS ---
+// --- AUTH FORMS (Unchanged) ---
 
 interface AuthFormProps {
   type: UserRole;
@@ -185,7 +192,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ type, onSignup, onBack, onSwitc
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [company, setCompany] = useState(''); // Only for recruiters
+  const [company, setCompany] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
